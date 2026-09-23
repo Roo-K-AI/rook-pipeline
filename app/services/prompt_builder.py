@@ -3,11 +3,9 @@ from pydantic import BaseModel, Field
 
 class ProductSeoOutput(BaseModel):
     """Schéma de sortie structurée attendue pour l'enrichissement SEO."""
-    """Schéma de sortie structurée pour l'enrichissement SEO."""
 
     seo_title: str = Field(
         description="Titre SEO optimisé pour les moteurs de recherche"
-        description="Titre optimisé pour le référencement naturel (SEO), accrocheur et vendeur"
     )
 
     meta_description: str = Field(
@@ -16,12 +14,10 @@ class ProductSeoOutput(BaseModel):
 
     short_description: str = Field(
         description="Description courte destinée aux aperçus et catalogues e-commerce"
-        description="Description courte résumant les atouts clés du produit pour le e-commerce"
     )
 
     long_description: str = Field(
         description="Description détaillée, persuasive et optimisée SEO"
-        description="Description détaillée, fluide, persuasive et structurée du produit"
     )
 
     benefits: list[str] = Field(
@@ -38,7 +34,6 @@ class ProductSeoOutput(BaseModel):
 
     seo_tags: list[str] = Field(
         description="Liste de mots-clés SEO pertinents"
-        description="Liste de mots-clés et tags SEO e-commerce pertinents"
     )
 
 
@@ -54,10 +49,6 @@ class PromptBuilder:
             "Le contenu doit être naturel, vendeur, clair et optimisé pour le référencement naturel. "
             "Tu ne dois jamais inventer des caractéristiques techniques précises lorsqu'elles ne sont pas connues. "
             "Tu dois produire uniquement un JSON valide conforme au schéma demandé."
-            "Tu es un expert en e-commerce et en rédaction SEO. "
-            "Ton rôle est de générer des fiches produits attrayantes, professionnelles, "
-            "optimisées pour le référencement naturel (SEO), en français. "
-            "Tu dois respecter strictement le schéma JSON demandé sans inventer d'allégations fausses."
         )
 
     @staticmethod
@@ -91,11 +82,3 @@ Consignes :
 - Ne jamais inventer des données techniques précises lorsqu'elles ne sont pas connues.
 - Adapter le contenu au commerce en ligne.
 """
-        return (
-            f"Produit : {product_name}\n\n"
-            "Génère la fiche SEO e-commerce complète comprenant exactement les champs suivants :\n"
-            "- seo_title : titre SEO percutant\n"
-            "- short_description : courte description vendeuse\n"
-            "- long_description : description détaillée, fluide et engageante\n"
-            "- seo_tags : liste de 5 à 10 mots-clés SEO pertinents"
-        )
