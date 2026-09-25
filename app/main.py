@@ -8,7 +8,6 @@ app = FastAPI(
     version="1.0.0",
 )
 
-
 @app.get("/health", response_model=HealthResponse)
 def health() -> HealthResponse:
     return HealthResponse(status="ok")
@@ -18,5 +17,11 @@ def health() -> HealthResponse:
 def ready() -> HealthResponse:
     return HealthResponse(status="ready")
 
+@app.get("/")
+def root():
+    return {
+        "status": "ok",
+        "service": "rook-pipeline"
+    }
 
 app.include_router(enrichments_router)
