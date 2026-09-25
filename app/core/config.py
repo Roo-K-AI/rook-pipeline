@@ -29,20 +29,6 @@ class Settings:
         )
     )
 
-    openai_api_key: str = field(
-        default_factory=lambda: os.getenv(
-            "OPENAI_API_KEY",
-            ""
-        )
-    )
-
-    openai_model: str = field(
-        default_factory=lambda: os.getenv(
-            "OPENAI_MODEL",
-            "gpt-5"
-        )
-    )
-
     pipeline_version: str = "product-enrichment.v1"
     default_max_attempts: int = 3
 
@@ -58,5 +44,4 @@ class Settings:
             "false"
         ).lower() in ("true", "1", "yes")
     )
-print("OPENAI_API_KEY =", os.getenv("OPENAI_API_KEY"))
 settings = Settings()
