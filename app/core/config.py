@@ -1,5 +1,4 @@
 from dotenv import load_dotenv
-
 load_dotenv()
 
 import os
@@ -11,22 +10,20 @@ class Settings:
     service_auth_token: str = field(
         default_factory=lambda: os.getenv(
             "ROOK_SERVICE_TOKEN",
-            "rook-internal-secret-token"
+            "rook-internal-secret-token",
         )
+    )
+
+    database_url: str = field(
+        default_factory=lambda: os.getenv("DATABASE_URL", "")
     )
 
     gemini_api_key: str = field(
-        default_factory=lambda: os.getenv(
-            "GEMINI_API_KEY",
-            ""
-        )
+        default_factory=lambda: os.getenv("GEMINI_API_KEY", "")
     )
 
     gemini_model: str = field(
-        default_factory=lambda: os.getenv(
-            "GEMINI_MODEL",
-            "gemini-3.6-flash"
-        )
+        default_factory=lambda: os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
     )
 
     pipeline_version: str = "product-enrichment.v1"
@@ -40,8 +37,9 @@ class Settings:
 
     enforce_auth: bool = field(
         default_factory=lambda: os.getenv(
-            "ENFORCE_SERVICE_AUTH",
-            "false"
+            "ENFORCE_SERVICE_AUTH", "false"
         ).lower() in ("true", "1", "yes")
     )
+
+
 settings = Settings()

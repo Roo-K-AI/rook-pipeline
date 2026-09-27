@@ -21,7 +21,7 @@ from app.schemas.enrichment import (
 )
 from app.services.job_registry import (
     IdempotencyConflictError,
-    InMemoryJobRegistry,
+    PostgresJobRegistry,
     InvalidJobTransitionError,
     get_job_registry,
 )
@@ -44,7 +44,7 @@ class DirectProductRequest(BaseModel):
 
 async def execute_job_generation(
     job_id: str,
-    registry: InMemoryJobRegistry,
+    registry: PostgresJobRegistry,
     generator: ProductGenerator,
 ) -> None:
     """Tâche d'arrière-plan exécutant la génération réelle avec Gemini."""
@@ -161,7 +161,7 @@ def create_product_enrichment(
     authorization: str | None = Header(default=None),
     correlation_id: str | None = Header(default=None, alias="X-Correlation-Id"),
     idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
-    registry: InMemoryJobRegistry = Depends(get_job_registry),
+    registry: PostgresJobRegistry = Depends(get_job_registry),
     generator: ProductGenerator = Depends(get_product_generator),
 ) -> ProductEnrichmentAck:
     """Création asynchrone d'un job d'enrichissement de produit."""
@@ -176,7 +176,7 @@ def create_product_enrichment(
             detail="request_validation_failed",
         )
 
-    actual_registry = registry if isinstance(registry, InMemoryJobRegistry) else get_job_registry()
+    actual_registry = registry if isinstance(registry, PostgresJobRegistry) else get_job_registry()
     actual_generator = generator if isinstance(generator, ProductGenerator) else get_product_generator()
 
     try:
@@ -200,10 +200,10 @@ def create_product_enrichment(
 @router.get("/jobs/{job_id}", response_model=ProductEnrichmentStatus)
 def get_product_enrichment(
     job_id: str,
-    registry: InMemoryJobRegistry = Depends(get_job_registry),
+    registry: PostgresJobRegistry = Depends(get_job_registry),
 ) -> ProductEnrichmentStatus:
     """Consultation de l'état et du résultat d'un job."""
-    actual_registry = registry if isinstance(registry, InMemoryJobRegistry) else get_job_registry()
+    actual_registry = registry if isinstance(registry, PostgresJobRegistry) else get_job_registry()
     job = actual_registry.get_job(job_id)
     if job is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="job_not_found")
@@ -216,7 +216,7 @@ def retry_product_enrichment(
     background_tasks: BackgroundTasks = BackgroundTasks(),
     authorization: str | None = Header(default=None),
     correlation_id: str | None = Header(default=None, alias="X-Correlation-Id"),
-    registry: InMemoryJobRegistry = Depends(get_job_registry),
+    registry: PostgresJobRegistry = Depends(get_job_registry),
     generator: ProductGenerator = Depends(get_product_generator),
 ) -> ProductEnrichmentAck:
     """Relance un job en échec."""
@@ -231,7 +231,7 @@ def retry_product_enrichment(
             detail="request_validation_failed",
         )
 
-    actual_registry = registry if isinstance(registry, InMemoryJobRegistry) else get_job_registry()
+    actual_registry = registry if isinstance(registry, PostgresJobRegistry) else get_job_registry()
     actual_generator = generator if isinstance(generator, ProductGenerator) else get_product_generator()
 
     job = actual_registry.get_job(job_id)
