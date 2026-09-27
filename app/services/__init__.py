@@ -1,6 +1,6 @@
 from app.services.job_registry import (
     IdempotencyConflictError,
-    InMemoryJobRegistry,
+    PostgresJobRegistry,
     InvalidJobTransitionError,
     JobRecord,
     get_job_registry,
@@ -14,7 +14,7 @@ from app.services.prompt_builder import ProductSeoOutput, PromptBuilder
 
 __all__ = [
     "IdempotencyConflictError",
-    "InMemoryJobRegistry",
+    "PostgresJobRegistry",
     "InvalidJobTransitionError",
     "JobRecord",
     "ProductGenerator",
