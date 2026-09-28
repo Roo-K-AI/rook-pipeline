@@ -3,7 +3,6 @@ from datetime import UTC, datetime
 from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, status
 from pydantic import BaseModel, Field
 
-from app.pipeline.orchestrator import JobOrchestrator, get_job_orchestrator
 from app.core.config import settings
 from app.core.security import verify_service_auth
 from app.schemas.enrichment import (
@@ -22,7 +21,7 @@ from app.schemas.enrichment import (
 )
 from app.services.job_registry import (
     IdempotencyConflictError,
-    InMemoryJobRegistry,
+    PostgresJobRegistry,
     InvalidJobTransitionError,
     get_job_registry,
 )
@@ -45,7 +44,7 @@ class DirectProductRequest(BaseModel):
 
 async def execute_job_generation(
     job_id: str,
-    registry: InMemoryJobRegistry,
+    registry: PostgresJobRegistry,
     generator: ProductGenerator,
 ) -> None:
     """Tâche d'arrière-plan exécutant la génération réelle avec Gemini."""
@@ -77,10 +76,12 @@ async def execute_job_generation(
                 title=seo_data.get("seo_title", product_name),
                 short_description=seo_data.get("short_description"),
                 long_description=seo_data.get("long_description"),
-                bullet_points=[],
-                benefits=[],
-                usage=None,
-                target_audience=None,
+                bullet_points=seo_data.get("specifications", []),
+                benefits=seo_data.get("benefits", []),
+                usage="\n".join(
+                    seo_data.get("usage_tips", [])
+                ),
+                target_audience="Grand public",
             ),
             specifications=Specifications(
                 attributes=[],
@@ -160,8 +161,7 @@ def create_product_enrichment(
     authorization: str | None = Header(default=None),
     correlation_id: str | None = Header(default=None, alias="X-Correlation-Id"),
     idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
-    registry: InMemoryJobRegistry = Depends(get_job_registry),
-    orchestrator: JobOrchestrator = Depends(get_job_orchestrator),
+    registry: PostgresJobRegistry = Depends(get_job_registry),
     generator: ProductGenerator = Depends(get_product_generator),
 ) -> ProductEnrichmentAck:
     """Création asynchrone d'un job d'enrichissement de produit."""
@@ -176,8 +176,7 @@ def create_product_enrichment(
             detail="request_validation_failed",
         )
 
-    actual_registry = registry if isinstance(registry, InMemoryJobRegistry) else get_job_registry()
-    actual_orchestrator = orchestrator if isinstance(orchestrator, JobOrchestrator) else get_job_orchestrator()
+    actual_registry = registry if isinstance(registry, PostgresJobRegistry) else get_job_registry()
     actual_generator = generator if isinstance(generator, ProductGenerator) else get_product_generator()
 
     try:
@@ -193,7 +192,6 @@ def create_product_enrichment(
         ) from exc
 
     if created:
-        background_tasks.add_task(actual_orchestrator.run_pipeline, job.job_id, actual_registry)
         background_tasks.add_task(execute_job_generation, job.job_id, actual_registry, actual_generator)
 
     return job.to_ack()
@@ -202,10 +200,10 @@ def create_product_enrichment(
 @router.get("/jobs/{job_id}", response_model=ProductEnrichmentStatus)
 def get_product_enrichment(
     job_id: str,
-    registry: InMemoryJobRegistry = Depends(get_job_registry),
+    registry: PostgresJobRegistry = Depends(get_job_registry),
 ) -> ProductEnrichmentStatus:
     """Consultation de l'état et du résultat d'un job."""
-    actual_registry = registry if isinstance(registry, InMemoryJobRegistry) else get_job_registry()
+    actual_registry = registry if isinstance(registry, PostgresJobRegistry) else get_job_registry()
     job = actual_registry.get_job(job_id)
     if job is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="job_not_found")
@@ -218,8 +216,7 @@ def retry_product_enrichment(
     background_tasks: BackgroundTasks = BackgroundTasks(),
     authorization: str | None = Header(default=None),
     correlation_id: str | None = Header(default=None, alias="X-Correlation-Id"),
-    registry: InMemoryJobRegistry = Depends(get_job_registry),
-    orchestrator: JobOrchestrator = Depends(get_job_orchestrator),
+    registry: PostgresJobRegistry = Depends(get_job_registry),
     generator: ProductGenerator = Depends(get_product_generator),
 ) -> ProductEnrichmentAck:
     """Relance un job en échec."""
@@ -234,8 +231,7 @@ def retry_product_enrichment(
             detail="request_validation_failed",
         )
 
-    actual_registry = registry if isinstance(registry, InMemoryJobRegistry) else get_job_registry()
-    actual_orchestrator = orchestrator if isinstance(orchestrator, JobOrchestrator) else get_job_orchestrator()
+    actual_registry = registry if isinstance(registry, PostgresJobRegistry) else get_job_registry()
     actual_generator = generator if isinstance(generator, ProductGenerator) else get_product_generator()
 
     job = actual_registry.get_job(job_id)
@@ -250,7 +246,6 @@ def retry_product_enrichment(
             detail=str(exc),
         ) from exc
 
-    background_tasks.add_task(actual_orchestrator.run_pipeline, updated_job.job_id, actual_registry)
     background_tasks.add_task(execute_job_generation, updated_job.job_id, actual_registry, actual_generator)
     return updated_job.to_ack()
 

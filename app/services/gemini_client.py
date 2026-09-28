@@ -28,14 +28,17 @@ class GeminiClient:
     def __init__(
         self,
         api_key: str | None = None,
-        default_model: str = "gemini-3.6-flash",
         default_model: str | None = None,
     ) -> None:
+
         if api_key is not None:
             resolved_key = api_key.strip()
         else:
-            resolved_key = (os.getenv("GEMINI_API_KEY") or "").strip()
-            resolved_key = (settings.gemini_api_key or os.getenv("GEMINI_API_KEY") or "").strip()
+            resolved_key = (
+                settings.gemini_api_key
+                or os.getenv("GEMINI_API_KEY")
+                or ""
+            ).strip()
 
         if not resolved_key:
             raise GeminiClientError(
@@ -43,10 +46,11 @@ class GeminiClient:
             )
 
         self.api_key = resolved_key
-
-        self.default_model = default_model
         self.default_model = default_model or settings.gemini_model
-        self.client = genai.Client(api_key=self.api_key)
+
+        self.client = genai.Client(
+            api_key=self.api_key
+        )
 
     def generate_structured(
         self,
@@ -59,11 +63,12 @@ class GeminiClient:
         base_backoff: float = 2.0,
     ) -> dict[str, Any]:
         """
-        Génère du contenu conforme à un schéma Pydantic avec le modèle spécifié.
-        Génère du contenu conforme à un schéma Pydantic avec le modèle Gemini configuré.
-        Intègre une stratégie de réessai exponentiel face aux saturations temporaires (503 / 429).
+        Génère du contenu structuré conforme à un schéma Pydantic.
+        Gère automatiquement les erreurs temporaires Gemini (429 / 503).
         """
+
         target_model = model or self.default_model
+
         config = types.GenerateContentConfig(
             response_mime_type="application/json",
             response_schema=response_schema,
@@ -82,28 +87,39 @@ class GeminiClient:
                 )
 
                 if not response.text:
-                    raise GeminiClientError("Réponse vide reçue de Gemini.")
+                    raise GeminiClientError(
+                        "Réponse vide reçue de Gemini."
+                    )
 
                 return json.loads(response.text)
 
             except Exception as exc:
                 last_error = exc
-                err_msg = str(exc)
+                error_message = str(exc)
+
                 logger.warning(
-                    "Tentative %d/%d échouée pour le modèle %s : %s",
+                    "Tentative %d/%d échouée pour %s : %s",
                     attempt,
                     max_retries,
                     target_model,
-                    err_msg,
+                    error_message,
                 )
 
-                # Si c'est une erreur 503 (haute demande temporaire) ou 429 (rate limit), on attend
-                # Gestion d'indisponibilité temporaire (503) ou limitation de débit (429)
-                if "503" in err_msg or "429" in err_msg or "UNAVAILABLE" in err_msg:
+                if (
+                    "503" in error_message
+                    or "429" in error_message
+                    or "UNAVAILABLE" in error_message
+                ):
                     sleep_time = base_backoff * (2 ** (attempt - 1))
+                    logger.warning(
+                        "Gemini temporairement indisponible. Nouvelle tentative dans %.1f secondes.",
+                        sleep_time,
+                    )
                     time.sleep(sleep_time)
+
                 elif attempt < max_retries:
                     time.sleep(base_backoff)
+
                 else:
                     break
 

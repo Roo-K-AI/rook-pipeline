@@ -1,7 +1,7 @@
 import unittest
 from unittest.mock import MagicMock
 
-from app.services.gemini_client import GeminiClient, GeminiClientError
+from app.services.openai_client import OpenAIClient, OpenAIClientError
 from app.services.product_generator import ProductGenerator
 from app.services.prompt_builder import ProductSeoOutput, PromptBuilder
 
@@ -39,7 +39,7 @@ class TestGeminiServices(unittest.TestCase):
             "seo_tags": ["litiere", "chat", "hygiene"],
         }
 
-        generator = ProductGenerator(gemini_client=mock_client)
+        generator = ProductGenerator(openai_client=mock_client)
         result = generator.generate("Litière à chat")
 
         self.assertIn("seo_title", result)
